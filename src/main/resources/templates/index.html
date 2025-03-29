@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>失物招领小助手</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #4a6fa5;
+            color: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .settings {
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            line-height: 1.4;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+            flex-direction: row-reverse;
+        }
+
+        .ai-message {
+            background-color: #f1f1f1;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+
+        .input-area {
+            display: flex;
+            padding: 15px;
+            background-color: #f0f0f0;
+            border-top: 1px solid #ddd;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        #send-button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            background-color: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        #send-button:hover {
+            background-color: #3a5a80;
+        }
+
+        #send-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .user-id {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .typing-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #666;
+            margin-right: 3px;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+        }
+
+        .user-avatar {
+            background-color: #4a6fa5;
+        }
+
+        .ai-avatar {
+            background-color: #666;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .no-more-history {
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .history-divider {
+            text-align: center;
+            margin: 15px 0;
+            color: #666;
+            font-size: 0.9em;
+            position: relative;
+        }
+
+        .history-divider::before,
+        .history-divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid #ddd;
+            position: absolute;
+            top: 50%;
+            width: 40%;
+        }
+
+        .history-divider::before {
+            left: 0;
+        }
+
+        .history-divider::after {
+            right: 0;
+        }
+
+        .history-divider span {
+            padding: 0 10px;
+            position: relative;
+        }
+
+        .history-message {
+            opacity: 0.8;
+        }
+
+        .loading-history {
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>失物招领小助手</h1>
+    </div>
+
+    <div class="settings">
+        <div class="user-id">当前用户ID: <span id="current-user-id">未设置</span></div>
+        <div>
+            <input type="text" id="user-id-input" placeholder="输入用户ID">
+            <button id="set-user-id">设置用户ID</button>
+            <button onclick="clearHistory()" style="margin-left: 10px">清除历史记录</button>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chat-container">
+        <div id="no-more-history" class="no-more-history" style="display: none;">没有更多历史记录了</div>
+    </div>
+
+    <div class="input-area">
+        <input type="text" id="message-input" placeholder="输入消息..." disabled>
+        <button id="send-button" disabled>发送</button>
+    </div>
+</div>
+
+<script>
+    // DOM元素
+    const chatContainer = document.getElementById('chat-container');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const userIdInput = document.getElementById('user-id-input');
+    const setUserIdButton = document.getElementById('set-user-id');
+    const currentUserIdSpan = document.getElementById('current-user-id');
+    const noMoreHistoryDiv = document.getElementById('no-more-history');
+
+    // 全局变量
+    let currentUserId = null;
+    let isWaitingForResponse = false;
+    let currentAiMessageElement = null;
+    let currentAiMessageContent = null;
+    let controller = null;
+    let historyPage = 0;
+    let hasMoreHistory = true;
+    let isLoadingHistory = false;
+    let firstMessageAdded = false;
+    let allHistoryMessages = [];
+    let loadingIndicator = null;
+    let initialSystemMessage = null; // 存储初始系统消息
+
+    // 页面加载时显示初始系统消息
+    window.addEventListener('DOMContentLoaded', () => {
+        initialSystemMessage = addSystemMessage('请先设置用户ID，然后开始咨询失物招领相关问题');
+    });
+
+    // 设置用户ID
+    setUserIdButton.addEventListener('click', async () => {
+        const newUserId = userIdInput.value.trim();
+        if (newUserId) {
+            // 移除初始系统消息（如果存在）
+            if (initialSystemMessage && initialSystemMessage.parentNode) {
+                chatContainer.removeChild(initialSystemMessage);
+                initialSystemMessage = null;
+            }
+
+            currentUserId = newUserId;
+            currentUserIdSpan.textContent = newUserId;
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+
+            // 清空现有聊天记录
+            clearChatContainer();
+            allHistoryMessages = [];
+            historyPage = 0;
+            hasMoreHistory = true;
+            noMoreHistoryDiv.style.display = 'none';
+
+            // 加载历史记录
+            await loadHistory();
+
+            // 如果没有历史记录，添加欢迎消息
+            if (!firstMessageAdded) {
+                addMessage('ai', '您好！我是失物招领小助手，可以帮助您查询丢失物品信息或发布招领信息。请问有什么可以帮您？');
+                firstMessageAdded = true;
+            }
+
+            messageInput.focus();
+        } else {
+            alert('请输入有效的用户ID');
+        }
+    });
+
+    // 添加系统消息
+    function addSystemMessage(text) {
+        const systemDiv = document.createElement('div');
+        systemDiv.style.textAlign = 'center';
+        systemDiv.style.margin = '10px 0';
+        systemDiv.style.color = '#666';
+        systemDiv.style.fontSize = '0.9em';
+        systemDiv.textContent = text;
+
+        chatContainer.insertBefore(systemDiv, noMoreHistoryDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        return systemDiv;
+    }
+
+    // 清空聊天容器（保留没有更多记录提示）
+    function clearChatContainer() {
+        const children = Array.from(chatContainer.children);
+        for (const child of children) {
+            if (child !== noMoreHistoryDiv && child !== initialSystemMessage) {
+                chatContainer.removeChild(child);
+            }
+        }
+        noMoreHistoryDiv.style.display = 'none';
+        firstMessageAdded = false;
+    }
+
+    // 清空聊天容器中的历史消息（保留系统消息和没有更多记录提示）
+    function clearChatContainerForHistory() {
+        const children = Array.from(chatContainer.children);
+        for (const child of children) {
+            if (child !== noMoreHistoryDiv &&
+                !(child.style.textAlign === 'center' && child.style.fontSize === '0.9em') &&
+                child.className !== 'loading-history') {
+                chatContainer.removeChild(child);
+            }
+        }
+    }
+
+    // 发送消息
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // 滚动加载更多历史记录
+    chatContainer.addEventListener('scroll', async () => {
+        if (chatContainer.scrollTop < 100 && !isLoadingHistory && hasMoreHistory) {
+            await loadHistory();
+        }
+    });
+
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (!message || !currentUserId || isWaitingForResponse) return;
+
+        // 添加用户消息到聊天界面
+        addMessage('user', message);
+        messageInput.value = '';
+
+        // 添加AI消息占位符
+        currentAiMessageElement = addMessage('ai', '', true);
+        currentAiMessageContent = currentAiMessageElement.querySelector('.message-content');
+
+        // 禁用输入和发送按钮，等待响应
+        isWaitingForResponse = true;
+        messageInput.disabled = true;
+        sendButton.disabled = true;
+
+        // 创建新的AbortController用于中止请求
+        controller = new AbortController();
+
+        // 调用流式API
+        callStreamingChatAPI(currentUserId, message, controller.signal)
+            .then(() => {
+                // 请求完成后更新状态
+                completeAiMessage();
+            })
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error('API调用失败:', error);
+                    addSystemMessage('抱歉，获取AI回复时出错。请稍后再试。');
+                }
+            })
+            .finally(() => {
+                // 重新启用输入和发送按钮
+                isWaitingForResponse = false;
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                messageInput.focus();
+
+                // 重置相关变量
+                currentAiMessageElement = null;
+                currentAiMessageContent = null;
+                controller = null;
+            });
+    }
+
+    // 调用流式API
+    async function callStreamingChatAPI(userId, message, signal) {
+        const url = `/ai/chat-stream?userId=${encodeURIComponent(userId)}&message=${encodeURIComponent(message)}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                signal: signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            if (!response.body) {
+                throw new Error('ReadableStream not supported in this browser.');
+            }
+
+            // 处理流式响应
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let receivedText = '';
+
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, {stream: true});
+                receivedText += chunk;
+
+                // 更新AI消息内容
+                if (currentAiMessageContent) {
+                    currentAiMessageContent.textContent = receivedText;
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+            }
+
+            return receivedText;
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Error fetching stream:', error);
+            }
+            throw error;
+        }
+    }
+
+    // 加载历史记录
+    async function loadHistory() {
+        if (!currentUserId || isLoadingHistory || !hasMoreHistory) return;
+
+        isLoadingHistory = true;
+        showLoadingIndicator();
+
+        try {
+            const response = await fetch(`/ai/chat-history?userId=${encodeURIComponent(currentUserId)}&page=${historyPage}&size=10`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const newMessages = data.content;
+            const pageInfo = data.page;
+
+            // 检查是否还有更多记录
+            hasMoreHistory = (pageInfo.number + 1) < pageInfo.totalPages;
+
+            if (newMessages.length > 0) {
+                // 保存当前滚动位置和高度
+                const oldScrollHeight = chatContainer.scrollHeight;
+                const oldScrollTop = chatContainer.scrollTop;
+
+                // 将新消息添加到缓存中
+                allHistoryMessages = [...newMessages, ...allHistoryMessages];
+
+                // 按时间升序排序所有消息
+                allHistoryMessages.sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate));
+
+                // 清空聊天容器（保留系统消息）
+                clearChatContainerForHistory();
+
+                // 添加历史分割线（只在第一次加载时显示）
+                if (historyPage === 0) {
+                    const divider = document.createElement('div');
+                    divider.className = 'history-divider';
+                    divider.innerHTML = '<span>历史记录</span>';
+                    chatContainer.insertBefore(divider, noMoreHistoryDiv);
+                }
+
+                // 重新渲染所有历史消息
+                allHistoryMessages.forEach(msg => {
+                    const sender = msg.role === 'user' ? 'user' : 'ai';
+                    const messageDiv = createHistoryMessageElement(sender, msg.content, msg.createdDate);
+                    chatContainer.insertBefore(messageDiv, noMoreHistoryDiv);
+                });
+
+                // 如果没有更多记录，显示提示
+                if (!hasMoreHistory) {
+                    noMoreHistoryDiv.style.display = 'block';
+                    chatContainer.insertBefore(noMoreHistoryDiv, chatContainer.firstChild);
+                }
+
+                // 调整滚动位置
+                const newScrollHeight = chatContainer.scrollHeight;
+                if (historyPage === 0) {
+                    // 第一次加载，滚动到底部
+                    chatContainer.scrollTop = newScrollHeight;
+                } else {
+                    // 后续加载，保持当前位置
+                    chatContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+                }
+
+                historyPage++;
+                firstMessageAdded = true;
+            } else if (!hasMoreHistory) {
+                if (historyPage > 0) {
+                    noMoreHistoryDiv.style.display = 'block';
+                    chatContainer.insertBefore(noMoreHistoryDiv, chatContainer.firstChild);
+                }
+            }
+        } catch (error) {
+            console.error('加载历史记录失败:', error);
+            addSystemMessage('加载历史记录失败，请稍后再试');
+        } finally {
+            hideLoadingIndicator();
+            isLoadingHistory = false;
+        }
+    }
+
+    // 显示加载指示器
+    function showLoadingIndicator() {
+        if (!loadingIndicator) {
+            loadingIndicator = document.createElement('div');
+            loadingIndicator.className = 'loading-history';
+            loadingIndicator.textContent = '正在加载历史记录...';
+            chatContainer.insertBefore(loadingIndicator, noMoreHistoryDiv);
+        }
+    }
+
+    // 隐藏加载指示器
+    function hideLoadingIndicator() {
+        if (loadingIndicator && loadingIndicator.parentNode) {
+            loadingIndicator.parentNode.removeChild(loadingIndicator);
+            loadingIndicator = null;
+        }
+    }
+
+    // 创建历史消息元素
+    function createHistoryMessageElement(sender, text, timestamp) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message history-message`;
+
+        // 添加头像
+        const avatar = document.createElement('div');
+        avatar.className = `avatar ${sender}-avatar`;
+        avatar.textContent = sender === 'user' ? '👤' : '🤖';
+        messageDiv.appendChild(avatar);
+
+        // 消息内容容器
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'message-content-container';
+        messageDiv.appendChild(contentContainer);
+
+        // 消息内容
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.textContent = text;
+        contentContainer.appendChild(messageContent);
+
+        // 时间戳
+        const timeElement = document.createElement('div');
+        timeElement.className = 'timestamp';
+        timeElement.textContent = formatTimestamp(timestamp);
+        contentContainer.appendChild(timeElement);
+
+        return messageDiv;
+    }
+
+    // 添加消息到聊天界面
+    function addMessage(sender, text, isTyping = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+
+        // 添加头像
+        const avatar = document.createElement('div');
+        avatar.className = `avatar ${sender}-avatar`;
+        avatar.textContent = sender === 'user' ? '👤' : '🤖';
+        messageDiv.appendChild(avatar);
+
+        // 消息内容容器
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'message-content-container';
+        messageDiv.appendChild(contentContainer);
+
+        // 消息内容
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.textContent = text;
+        contentContainer.appendChild(messageContent);
+
+        if (isTyping && sender === 'ai') {
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = `
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                    <span class="typing-dot"></span>
+                `;
+            contentContainer.appendChild(typingIndicator);
+        }
+
+        const timestamp = document.createElement('div');
+        timestamp.className = 'timestamp';
+        timestamp.textContent = formatTimestamp(new Date());
+        contentContainer.appendChild(timestamp);
+
+        chatContainer.insertBefore(messageDiv, noMoreHistoryDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        return messageDiv;
+    }
+
+    // 格式化时间戳
+    function formatTimestamp(timestamp) {
+        if (!timestamp) return '';
+
+        try {
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+            return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        } catch (e) {
+            console.error('日期格式化错误:', e);
+            return '';
+        }
+    }
+
+    // 完成AI消息（移除打字指示器）
+    function completeAiMessage() {
+        if (currentAiMessageElement) {
+            const typingIndicator = currentAiMessageElement.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+    }
+
+    // 窗口关闭前中止未完成的请求
+    window.addEventListener('beforeunload', () => {
+        if (controller) {
+            controller.abort();
+        }
+    });
+
+    // 在JavaScript部分添加清除逻辑
+    function clearHistory() {
+        if (!currentUserId) {
+            alert('请先设置用户ID');
+            return;
+        }
+
+        // 新增二次确认逻辑
+        if (!confirm('确认要清除所有历史记录吗？')) {
+            return;
+        }
+
+        fetch(`/ai/clear-chat-history/${currentUserId}`, {
+            method: 'POST'
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('历史记录已清除');
+
+                allHistoryMessages = [];
+                historyPage = 0;
+                hasMoreHistory = true;
+
+                clearChatContainerForHistory();
+                noMoreHistoryDiv.style.display = 'none';
+
+                // 新增：清除后显示初始问候语
+                addMessage('ai', '您好！我是失物招领小助手，可以帮助您查询丢失物品信息或发布招领信息。请问有什么可以帮您？');
+                firstMessageAdded = true;
+
+            } else {
+                throw new Error('服务器返回错误');
+            }
+        })
+        .catch(error => {
+            console.error('清除历史记录失败:', error);
+            alert('清除历史记录失败，请稍后再试');
+        });
+    }
+</script>
+</body>
+</html>

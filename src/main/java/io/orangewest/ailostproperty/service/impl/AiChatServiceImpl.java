@@ -2,7 +2,9 @@ package io.orangewest.ailostproperty.service.impl;
 
 import io.orangewest.ailostproperty.assistant.AiAssistant;
 import io.orangewest.ailostproperty.component.ChatFlow;
+import io.orangewest.ailostproperty.dao.ChatHistoryRepository;
 import io.orangewest.ailostproperty.dao.LostRegisterRepository;
+import io.orangewest.ailostproperty.pojo.dto.ChatHistoryVo;
 import io.orangewest.ailostproperty.pojo.entity.LostRegisterEntity;
 import io.orangewest.ailostproperty.pojo.output.IntentionOutput;
 import io.orangewest.ailostproperty.pojo.output.LostPropertyOutput;
@@ -10,7 +12,10 @@ import io.orangewest.ailostproperty.service.AiChatService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -21,6 +26,9 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Autowired
     private LostRegisterRepository lostRegisterRepository;
+
+    @Autowired
+    private ChatHistoryRepository chatHistoryRepository;
 
     @Override
     @ChatFlow
@@ -42,6 +50,18 @@ public class AiChatServiceImpl implements AiChatService {
                 break;
         }
         return output;
+    }
+
+    @Override
+    public Page<ChatHistoryVo> queryChatHistory(String userId, Pageable page) {
+        return chatHistoryRepository.findAllBySessionId(userId, page)
+                .map(chatHistory -> ChatHistoryVo.of(chatHistory.getRole().getRole(), chatHistory.getContent(), chatHistory.getCreatedDate()));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void clearChatHistory(String userId) {
+        chatHistoryRepository.deleteBySessionId(userId);
     }
 
     private String registerLost(String userId, String message) {
