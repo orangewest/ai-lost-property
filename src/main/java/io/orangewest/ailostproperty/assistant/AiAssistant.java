@@ -9,7 +9,7 @@ import io.orangewest.ailostproperty.pojo.output.IntentionOutput;
 import io.orangewest.ailostproperty.pojo.output.LostPropertyOutput;
 
 @AiService(wiringMode = AiServiceWiringMode.EXPLICIT, chatModel = "qwenChatModel",
-        streamingChatModel = "qwenStreamingChatModel", tools = {"chatHistoryTools"})
+        streamingChatModel = "qwenStreamingChatModel", tools = {"chatHistoryTools", "lostRegisterTools"})
 public interface AiAssistant {
 
     /**

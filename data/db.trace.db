@@ -1,3 +1,6 @@
 2025-03-27 15:42:51.901001+08:00 jdbc[3]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "LOST_REGISTER" not found (this database is empty); SQL statement:
 insert into lost_register (created_date,lost_name,lost_type,phone,updated_date,username,id) values (?,?,?,?,?,?,default) [42104-232]
+2025-03-31 13:40:15.566158+08:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "[*]LOST_REGISTER"; SQL statement:
+LOST_REGISTER [42000-232]
