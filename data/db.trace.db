@@ -4,3 +4,9 @@ insert into lost_register (created_date,lost_name,lost_type,phone,updated_date,u
 2025-03-31 13:40:15.566158+08:00 jdbc[13]: exception
 org.h2.jdbc.JdbcSQLSyntaxErrorException: Syntax error in SQL statement "[*]LOST_REGISTER"; SQL statement:
 LOST_REGISTER [42000-232]
+2025-04-01 11:01:44.508792+08:00 jdbc[3]: exception
+org.h2.jdbc.JdbcSQLDataException: Value too long for column "CONTENT CHARACTER VARYING(255)": "U&'{\\000a  ""$schema"": ""http://json-schema.org/draft-07/schema#"",\\000a  ""title"": ... (428)"; SQL statement:
+insert into chat_history (content,created_date,role,session_id,updated_date,id) values (?,?,?,?,?,default) [22001-232]
+2025-04-01 11:16:05.236512+08:00 jdbc[13]: exception
+org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "FORM" not found; SQL statement:
+delete form LOST_REGISTER where id =13 [42102-232]

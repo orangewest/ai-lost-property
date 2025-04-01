@@ -447,7 +447,11 @@
                 // 更新AI消息内容
                 if (currentAiMessageContent) {
                     currentAiMessageContent.textContent = receivedText;
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                    // 修改点：将滚动操作包裹在requestAnimationFrame中
+                    requestAnimationFrame(() => {
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    });
                 }
             }
 
@@ -656,6 +660,10 @@
             if (typingIndicator) {
                 typingIndicator.remove();
             }
+            // 新增：双重保障确保滚动到底部
+            requestAnimationFrame(() => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
         }
     }
 

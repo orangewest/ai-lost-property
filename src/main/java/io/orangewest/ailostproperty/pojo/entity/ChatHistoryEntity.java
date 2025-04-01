@@ -2,6 +2,7 @@ package io.orangewest.ailostproperty.pojo.entity;
 
 import io.orangewest.ailostproperty.pojo.enums.ChatRole;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -21,6 +22,7 @@ public class ChatHistoryEntity extends BaseEntity {
     private ChatRole role;
 
     @Comment("内容")
+    @Lob
     private String content;
 
 }

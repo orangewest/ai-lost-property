@@ -1,10 +1,14 @@
 package io.orangewest.ailostproperty.service.impl;
 
+import com.alibaba.dashscope.utils.JsonUtils;
 import io.orangewest.ailostproperty.assistant.AiAssistant;
+import io.orangewest.ailostproperty.assistant.LostPropertyAssistant;
 import io.orangewest.ailostproperty.component.ChatFlow;
 import io.orangewest.ailostproperty.dao.ChatHistoryRepository;
+import io.orangewest.ailostproperty.dao.LostPropertyRepository;
 import io.orangewest.ailostproperty.dao.LostRegisterRepository;
 import io.orangewest.ailostproperty.pojo.dto.ChatHistoryVo;
+import io.orangewest.ailostproperty.pojo.entity.LostPropertyEntity;
 import io.orangewest.ailostproperty.pojo.entity.LostRegisterEntity;
 import io.orangewest.ailostproperty.pojo.output.IntentionOutput;
 import io.orangewest.ailostproperty.pojo.output.LostPropertyOutput;
@@ -30,6 +34,12 @@ public class AiChatServiceImpl implements AiChatService {
     @Autowired
     private ChatHistoryRepository chatHistoryRepository;
 
+    @Autowired
+    private LostPropertyAssistant lostPropertyAssistant;
+
+    @Autowired
+    private LostPropertyRepository lostPropertyRepository;
+
     @Override
     @ChatFlow
     public String chat(String userId, String message) {
@@ -44,6 +54,7 @@ public class AiChatServiceImpl implements AiChatService {
                 break;
             case 2:
                 // 找到失物登记
+                output = registerLostProperty(userId, message);
                 break;
             case 3:
                 // 失物查询
@@ -71,6 +82,21 @@ public class AiChatServiceImpl implements AiChatService {
             LostRegisterEntity lostRegisterEntity = new LostRegisterEntity();
             BeanUtils.copyProperties(lostPropertyOutput, lostRegisterEntity);
             lostRegisterRepository.save(lostRegisterEntity);
+        }
+        return lostPropertyOutput.getOutput();
+    }
+
+    private String registerLostProperty(String userId, String message) {
+        StringBuilder sb = new StringBuilder();
+        lostPropertyAssistant.registerLostProperty(userId, message)
+                .doOnNext(sb::append)
+                .blockLast();
+        log.info("registerLostProperty sb:{}", sb);
+        LostPropertyOutput lostPropertyOutput = JsonUtils.fromJson(sb.toString(), LostPropertyOutput.class);
+        if (lostPropertyOutput.getCompleted()) {
+            LostPropertyEntity lostPropertyEntity = new LostPropertyEntity();
+            BeanUtils.copyProperties(lostPropertyOutput, lostPropertyEntity);
+            lostPropertyRepository.save(lostPropertyEntity);
         }
         return lostPropertyOutput.getOutput();
     }
