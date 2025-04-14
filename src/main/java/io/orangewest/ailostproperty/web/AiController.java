@@ -11,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/ai")
 @RequiredArgsConstructor
@@ -33,6 +35,16 @@ public class AiController {
     @PostMapping(value = "/clear-chat-history/{userId}")
     public void clearChatHistory(@PathVariable("userId") String userId) {
         aiChatService.clearChatHistory(userId);
+    }
+
+    @GetMapping(value = "/embedding-index")
+    public String embeddingIndex() {
+        return aiChatService.embeddingIndex();
+    }
+
+    @GetMapping(value = "/embedding-query")
+    public List<String> embeddingQuery(String message) {
+        return aiChatService.embeddingQuery(message);
     }
 
 }

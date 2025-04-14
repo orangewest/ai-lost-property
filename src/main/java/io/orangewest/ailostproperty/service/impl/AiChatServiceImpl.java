@@ -1,6 +1,19 @@
 package io.orangewest.ailostproperty.service.impl;
 
+import cn.hutool.core.io.FileUtil;
 import com.alibaba.dashscope.utils.JsonUtils;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.DocumentParser;
+import dev.langchain4j.data.document.DocumentSplitter;
+import dev.langchain4j.data.document.loader.FileSystemDocumentLoader;
+import dev.langchain4j.data.document.parser.TextDocumentParser;
+import dev.langchain4j.data.document.splitter.DocumentByLineSplitter;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingSearchResult;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import io.orangewest.ailostproperty.assistant.AiAssistant;
 import io.orangewest.ailostproperty.assistant.LostPropertyAssistant;
 import io.orangewest.ailostproperty.component.ChatFlow;
@@ -21,6 +34,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
 @Service
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
@@ -40,6 +58,12 @@ public class AiChatServiceImpl implements AiChatService {
     @Autowired
     private LostPropertyRepository lostPropertyRepository;
 
+    @Autowired
+    private EmbeddingModel embeddingModel;
+
+    @Autowired
+    private EmbeddingStore<TextSegment> embeddingStore;
+
     @Override
     @ChatFlow
     public String chat(String userId, String message) {
@@ -58,9 +82,19 @@ public class AiChatServiceImpl implements AiChatService {
                 break;
             case 3:
                 // 失物查询
+                output = queryLostProperty(userId, message);
                 break;
         }
         return output;
+    }
+
+    private String queryLostProperty(String userId, String message) {
+        StringBuilder sb = new StringBuilder();
+        lostPropertyAssistant.queryLostProperty(userId, message)
+                .doOnNext(sb::append)
+                .blockLast();
+        log.info("queryLostProperty:{}", sb);
+        return sb.toString();
     }
 
     @Override
@@ -74,6 +108,48 @@ public class AiChatServiceImpl implements AiChatService {
     public void clearChatHistory(String userId) {
         chatHistoryRepository.deleteBySessionId(userId);
     }
+
+    @Override
+    public String embeddingIndex() {
+        String path = "./data/data.txt";
+        try {
+            // 将丢失物品数据写入文件
+            FileUtil.writeString("", path, StandardCharsets.UTF_8);
+            List<String> collect = StreamSupport.stream(lostPropertyRepository.findAll().spliterator(), false)
+                    .map(JsonUtils::toJson)
+                    .toList();
+            FileUtil.appendLines(collect, path, StandardCharsets.UTF_8);
+            log.info("write file success");
+        } catch (Exception e) {
+            log.error("write file error", e);
+        }
+
+        // 加载并解析文档内容
+        DocumentParser documentParser = new TextDocumentParser();
+        Document document = FileSystemDocumentLoader.loadDocument(FileUtil.getAbsolutePath(path), documentParser);
+
+        // 按行分割文档为指定长度的文本片段
+        DocumentSplitter splitter = new DocumentByLineSplitter(200, 100);
+        List<TextSegment> documents = splitter.split(document);
+
+        // 生成文本片段的嵌入向量并存储
+        List<Embedding> embeddings = embeddingModel.embedAll(documents).content();
+        embeddingStore.addAll(embeddings, documents);
+
+        return "success";
+    }
+
+    @Override
+    public List<String> embeddingQuery(String message) {
+        EmbeddingSearchRequest embeddingSearchRequest = EmbeddingSearchRequest.builder()
+                .queryEmbedding(embeddingModel.embed(message).content())
+                .minScore(0.5)
+                .maxResults(2)
+                .build();
+        EmbeddingSearchResult<TextSegment> search = embeddingStore.search(embeddingSearchRequest);
+        return search.matches().stream().map(x -> x.embedded().text()).collect(Collectors.toList());
+    }
+
 
     private String registerLost(String userId, String message) {
         LostPropertyOutput lostPropertyOutput = aiAssistant.registerLost(userId, message);
